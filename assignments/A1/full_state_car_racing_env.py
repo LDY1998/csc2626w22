@@ -6,7 +6,7 @@ import numpy as np
 from math import atan2, cos, sin, sqrt
 
 class FullStateCarRacingEnv(CarRacing):
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, seed=0):
         CarRacing.__init__(self, seed=seed)
@@ -151,7 +151,7 @@ class FullStateCarRacingEnv(CarRacing):
         
         return self.step(None)[0]
 
-    def render(self, mode='human', do_render_indicators=False):
+    def render(self, mode='rgb_array', do_render_indicators=False):
         if self.viewer is None:
             from gym.envs.classic_control import rendering
             self.viewer = rendering.Viewer(WINDOW_W, WINDOW_H)

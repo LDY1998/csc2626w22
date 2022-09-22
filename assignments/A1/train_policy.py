@@ -16,7 +16,6 @@ def train_discrete(model, iterator, opt, args):
     model.train()
 
     loss_hist = []
-
     # Do one pass over the data accessed by the training iterator
     # Upload the data in each batch to the GPU (if applicable)
     # Zero the accumulated gradient in the optimizer 
@@ -24,12 +23,26 @@ def train_discrete(model, iterator, opt, args):
     # Compute the derivatives of the loss w.r.t. network parameters
     # Take a step in the approximate gradient direction using the optimizer opt  
     
+    critarion = nn.CrossEntropyLoss()
+    if args.weighted_loss:
+        def inverse(x):
+            return 0 if x == 0 else 1/x
+        dist_inv = np.fromiter((inverse(x) for x in args.class_dist), args.class_dist.dtype)
+        w = torch.Tensor(dist_inv).to(DEVICE)
+        critarion = nn.CrossEntropyLoss(weight=w)
     for i_batch, batch in enumerate(iterator):
 
         #
         # YOUR CODE GOES HERE
         #
+        x, y = batch['image'].to(DEVICE), batch['cmd'].to(DEVICE)
+        opt.zero_grad()
+        y_pred = model(x)
+
         
+        loss = critarion(y_pred, y)
+        loss.backward()
+        opt.step()
         loss = loss.detach().cpu().numpy()
         loss_hist.append(loss)
         
@@ -118,6 +131,7 @@ def main(args):
 
     args.class_dist = get_class_distribution(training_iterator, args)
 
+
     best_val_accuracy = 0 
     for epoch in range(args.n_epochs):
         print ('EPOCH ', epoch)
@@ -125,7 +139,12 @@ def main(args):
         #
         # YOUR CODE GOES HERE
         #
+        train_discrete(driving_policy, training_iterator, opt, args)
+        curr_acc = test_discrete(driving_policy, validation_iterator, opt, args)
         
+        if curr_acc > best_val_accuracy:
+            best_val_accuracy = curr_acc
+            torch.save(driving_policy, args.weights_out_file)
         # Train the driving policy
         # Evaluate the driving policy on the validation set
         # If the accuracy on the validation set is a new high then save the network weights 

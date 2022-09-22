@@ -30,6 +30,14 @@ class DiscreteDrivingPolicy(nn.Module):
             #
             # YOUR CODE GOES HERE
             #
+            nn.Conv2d(3, 24, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(24, 36, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(36, 48, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(48, 64, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
             Flatten(),
         )
         
@@ -37,7 +45,13 @@ class DiscreteDrivingPolicy(nn.Module):
             #
             # YOUR CODE GOES HERE
             #
-        )  
+            nn.Linear(4096, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, self.n_classes),
+            nn.ReLU(),
+        )
         
         self.apply(weights_init)
         

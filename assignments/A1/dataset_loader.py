@@ -40,3 +40,9 @@ class DrivingDataset(Dataset):
         
         return {'image': image, 'cmd': steering_command}
         
+class DaggerDrivingDataset(DrivingDataset):
+    def __init__(self, root_dir, categorical = False, classes=-1, transform=None, run_id=0) -> None:
+        super.__init__(root_dir, categorical, classes, transform)
+        regex = re.compile(f'expert_([1-{run_id}])_([0-9]+)_([-+]?\d*\.\d+|\d+).jpg')
+        self.filenames = [f for f in self.filenames if regex.match(f)]
+        print(self.filenames)
