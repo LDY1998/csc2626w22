@@ -104,9 +104,15 @@ def load_dataset(dataset_path="data/demos.pkl"):
 def q2_recons():
     trajectories = load_dataset()
     # TODO: Train a DMP on trajectories[0]
-    dmp = 
-    rollout = 
+    demo = trajectories[0]
+    X = np.expand_dims(demo, axis=0)
+    T = np.expand_dims(np.arange(0, demo.shape[0], demo.shape[0]), axis=0)
+    dmp = DMP()
+    dmp.learn(X, T)
+    rollout = dmp.rollout(dt=0.04, tau=T, x0 = trajectories[0], g=trajectories[-1])
 
+    # demo_time = np.linspace(0.0, 0.6, 6)
+    # rollout_time = np.linspace(0.0, 0.6, 6)
     # for k in range(6):
     #     plt.figure()
     #     plt.plot(demo_time, demo[:, k], label='GT')
@@ -119,8 +125,8 @@ def q2_tuning():
     trajectories = load_dataset()
     
     # TODO: select the best settings for fitting the demos
-    dmp = 
-    X, T = 
+    dmp = DMP()
+    X, T = dmp._interpolate(trajectories=trajectories, initial_dt=0.04)
     
     dmp.learn(X, T)
     dmp.save(TRAINED_DMP_PATH)
