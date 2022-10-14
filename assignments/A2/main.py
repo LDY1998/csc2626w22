@@ -105,20 +105,21 @@ def q2_recons():
     trajectories = load_dataset()
     # TODO: Train a DMP on trajectories[0]
     demo = trajectories[0]
-    X = np.expand_dims(demo, axis=0)
-    T = np.expand_dims(np.arange(0, demo.shape[0], demo.shape[0]), axis=0)
+    X = trajectories[0][None, :, :]
+    T = 0.04*np.arange(X.shape[1])[None, :]
     dmp = DMP()
     dmp.learn(X, T)
-    rollout = dmp.rollout(dt=0.04, tau=T, x0 = trajectories[0], g=trajectories[-1])
-
-    # demo_time = np.linspace(0.0, 0.6, 6)
-    # rollout_time = np.linspace(0.0, 0.6, 6)
-    # for k in range(6):
-    #     plt.figure()
-    #     plt.plot(demo_time, demo[:, k], label='GT')
-    #     plt.plot(rollout_time, rollout[:, k], label='DMP')
-    #     plt.legend()
-    #     plt.savefig(f'results/recons_{k}.png')
+    tau = T[0, -1]
+    dt = 0.04
+    rollout = dmp.rollout(dt=dt, tau=tau, x0 = demo[0], g=demo[-1])
+    demo_time = dt*np.arange(len(demo))
+    rollout_time = dt*np.arange(len(rollout))
+    for k in range(6):
+        plt.figure()
+        plt.plot(demo_time, demo[:, k], label='GT')
+        plt.plot(rollout_time, rollout[:, k], label='DMP')
+        plt.legend()
+        plt.savefig(f'results/recons_{k}.png')
 
 
 def q2_tuning():
@@ -129,6 +130,18 @@ def q2_tuning():
     X, T = dmp._interpolate(trajectories=trajectories, initial_dt=0.04)
     
     dmp.learn(X, T)
+    tau = T[0, -1]
+    dt = 0.04
+    demo = X[0]
+    rollout = dmp.rollout(dt=dt, tau=tau, x0 = demo[0], g=demo[-1])
+    demo_time = dt*np.arange(len(demo))
+    rollout_time = dt*np.arange(len(rollout))
+    for k in range(6):
+        plt.figure()
+        plt.plot(demo_time, demo[:, k], label='GT')
+        plt.plot(rollout_time, rollout[:, k], label='DMP')
+        plt.legend()
+        plt.savefig(f'results/tuning_{k}.png')
     dmp.save(TRAINED_DMP_PATH)
 
 

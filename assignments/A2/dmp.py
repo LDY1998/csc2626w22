@@ -66,46 +66,37 @@ class DMP(object):
         # Goal position : [num_demos, num_timesteps, num_dofs]
         g = np.tile(X[:, -1, :][:, None, :], (1, num_timesteps, 1))
          # Duration of the demonstrations
-        tau = T[:, -1] 
+        tau = T[:, -1]
 
-        tau = tau[:, None, None]
         # TODO: Compute s(t) for each step in the demonstrations
         # tau = np.reshape(tau, (tau.shape[0], 1))
-        s = np.exp((-self.alpha / tau) * T)
+        s = np.exp((-self.alpha / tau).reshape(-1, 1) * T)
 
 
         # TODO: Compute x_dot and x_ddot using numerical differentiation (np.graident)
-        x_dot = np.gradient(X, axis=1)
-        x_ddot = np.gradient(x_dot, axis=1)
+        x_dot = np.gradient(X, axis=1) / np.gradient(T, axis=1)[:,:,None]
+        x_ddot = np.gradient(x_dot, axis=1) / np.gradient(T, axis=1)[:,:,None]
+
 
         # TODO: Temporal Scaling by tau.
-        # v_dot = (self.K_vec * (g-X) - d*x_dot + (g-x0)*fs) / tau
-        v_dot = tau * x_ddot
+        v_dot = tau.reshape(-1, 1, 1) * x_ddot
+
         # TODO: Compute f_target(s) based on Equation 8.
-        # print(f"Shape of k, g, X, D, tau: {(self.K_vec.shape, g.shape, X.shape, self.D.shape, tau.shape)}")
-        # f_s_target = (-self.K_vec* (g-X) + self.D*x_dot + tau*v_dot) / g - x0
-        # f_s_target = []
-        # for i in range(X.shape[1]):
-        #     x = np.tile(X[:, i, :][:, None, :], (1, num_timesteps, 1))
-        #     x_dot_i = np.tile(x_dot[:, i, :][:, None, :], (1, num_timesteps, 1))
-        #     f_s_target.append()
 
-        f_s_target = (tau * v_dot + np.diagonal(self.D) * x_dot) / self.K_vec - (g-X) + (g-x0)*s
-
-        print(f"Shape of s, var, centers: {(s.shape, self.basis_variances.shape, self.basis_centers.shape)}")
+        f_s_target = (tau.reshape(-1, 1, 1) * (v_dot + np.diagonal(self.D) * x_dot)) / \
+            np.diagonal(self.K)[None, None, :] - (g-X) + (g-x0)*s[:, :, None]
 
         # TODO: Compute psi(s). Hint: shape should be [num_demos, num_timesteps, nbasis]
-        psi = np.exp(-self.basis_variances[:, None, None] * (s - self.basis_centers[:, None, None])**2)
+        # Hint: shape should be [1, 15, 30]
+        psi = np.exp(-self.basis_variances[None, None, :] * (s[:, :, None] - self.basis_centers[None, None, :])**2)
 
         # TODO: Solve a least squares problem for the weights.
         # Hint: minimize f_target(s) - f_w(s) wrt to w
         # Hint: you can use np.linalg.lstsq
-        if not self.weights:
-            self.weights = np.ones(num_demos)
-        f_ws = np.sum(self.weights*psi*s) / np.sum(psi)
+        
+        f_w = psi*s[:, :, None] / np.sum(psi, axis=2)[:, :, None]
 
-        self.weights, _ = np.linalg.lstsq(f_ws, f_s_target)
-
+        self.weights = np.linalg.lstsq(f_w.reshape(-1, self.nbasis), f_s_target.reshape(-1, 6))[0]
 
     def execute(self, t, dt, tau, x0, g, x_t, xdot_t):
         """
@@ -123,17 +114,18 @@ class DMP(object):
 
         # TODO: Compute f(s). See equation 3.
         psi = np.exp(-self.basis_variances * (s - self.basis_centers)**2)
-        f_s = np.sum(self.weights*psi*s) / np.sum(psi)
-
+        f_s = np.sum(psi[:, None]*self.weights*s, axis=0) / np.sum(psi)
         # Temporal Scaling
         v_t = tau * xdot_t
 
         # TODO: Calculate acceleration. Equation 6
-        v_dot_t = (self.K_vec*(g-x_t) - dt*v_t - self.K_vec*(g-x0)*s + self.K_vec*f_s) / tau
+        v_dot_t = (self.K_vec*(g-x_t) - np.diagonal(self.D)*v_t - \
+            self.K_vec*(g-x0)*s + self.K_vec*f_s) / tau
+        x_ddot_t = v_dot_t / tau
 
         # TODO: Calculate next position and velocity
-        xdot_tp1 = v_t + v_dot_t*dt
-        x_tp1 = x_t + v_t*dt
+        xdot_tp1 = xdot_t + x_ddot_t*dt
+        x_tp1 = x_t + xdot_t*dt
 
         return x_tp1, xdot_tp1
 
